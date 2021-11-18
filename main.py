@@ -11,6 +11,41 @@ class AppController(Tk):
 
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
+        self.title("Firulais Software Center")
+        self.geometry("800x600")
+
+        # Create a menu bar
+        menuBar = Menu(self)
+        fileMenu = Menu(menuBar, tearoff=0)
+        fileMenu.add_command(label="New file", command=unimplemented)
+        fileMenu.add_command(label="Open", command=unimplemented)
+        fileMenu.add_command(label="Save", command=unimplemented)
+        fileMenu.add_command(label="Save as...", command=unimplemented)
+        fileMenu.add_command(label="Set up", command=unimplemented)
+        fileMenu.add_command(label="Print", command=unimplemented)
+        fileMenu.add_separator()
+        fileMenu.add_command(label="Exit", command=self.quit)
+        menuBar.add_cascade(label="File", menu=fileMenu)
+        editMenu = Menu(menuBar, tearoff=0)
+        editMenu.add_command(label="Undo", command=unimplemented)
+        editMenu.add_command(label="Redo", command=unimplemented)
+        editMenu.add_command(label="Cut", command=unimplemented)
+        editMenu.add_command(label="Copy", command=unimplemented)
+        editMenu.add_command(label="Paste", command=unimplemented)
+        editMenu.add_command(label="Delete", command=unimplemented)
+        editMenu.add_command(label="Find", command=unimplemented)
+        editMenu.add_command(label="Preference", command=unimplemented)
+        menuBar.add_cascade(label="Edit", menu=editMenu)
+        viewMenu = Menu(menuBar, tearoff=0)
+        viewMenu.add_command(label="Zoom", command=unimplemented)
+        viewMenu.add_command(label="Status Bar", command=unimplemented)
+        menuBar.add_cascade(label="View", menu=viewMenu)
+        helpMenu = Menu(menuBar, tearoff=0)
+        helpMenu.add_command(label="Help Index", command=unimplemented)
+        helpMenu.add_command(label="About...", command=unimplemented)
+        menuBar.add_cascade(label="Help", menu=helpMenu)
+
+        self.config(menu=menuBar)
 
         # Create a container frame
         container = Frame(self)
@@ -67,76 +102,6 @@ def unimplemented():
 
 
 if __name__ == '__main__':
-    # mainMenu = Tk()
-    # mainMenu.title("Firulais Software Center")
-    # mainMenu.geometry("800x600")
-    #
-    # menuBar = Menu(mainMenu)
-    # fileMenu = Menu(menuBar, tearoff=0)
-    # fileMenu.add_command(label="New file", command=unimplemented)
-    # fileMenu.add_command(label="Open", command=unimplemented)
-    # fileMenu.add_command(label="Save", command=unimplemented)
-    # fileMenu.add_command(label="Save as...", command=unimplemented)
-    # fileMenu.add_command(label="Set up", command=unimplemented)
-    # fileMenu.add_command(label="Print", command=unimplemented)
-    # fileMenu.add_separator()
-    # fileMenu.add_command(label="Exit", command=mainMenu.quit)
-    # menuBar.add_cascade(label="File", menu=fileMenu)
-    # editMenu = Menu(menuBar, tearoff=0)
-    # editMenu.add_command(label="Undo", command=unimplemented)
-    # editMenu.add_command(label="Redo", command=unimplemented)
-    # editMenu.add_command(label="Cut", command=unimplemented)
-    # editMenu.add_command(label="Copy", command=unimplemented)
-    # editMenu.add_command(label="Paste", command=unimplemented)
-    # editMenu.add_command(label="Delete", command=unimplemented)
-    # editMenu.add_command(label="Find", command=unimplemented)
-    # editMenu.add_command(label="Preference", command=unimplemented)
-    # menuBar.add_cascade(label="Edit", menu=editMenu)
-    # viewMenu = Menu(menuBar, tearoff=0)
-    # viewMenu.add_command(label="Zoom", command=unimplemented)
-    # viewMenu.add_command(label="Status Bar", command=unimplemented)
-    # menuBar.add_cascade(label="View", menu=viewMenu)
-    # helpMenu = Menu(menuBar, tearoff=0)
-    # helpMenu.add_command(label="Help Index", command=unimplemented)
-    # helpMenu.add_command(label="About...", command=unimplemented)
-    # menuBar.add_cascade(label="Help", menu=helpMenu)
-    #
-    # mainMenu.config(menu=menuBar)
-    #
-    # frame = ttk.Frame(mainMenu, padding=10)
-    # frame.grid()
-
     # Start the GUI
     app = AppController()
     app.mainloop()
-
-    #
-    # categoryImage = ImageTk.PhotoImage(Image.open("icons/category.png"))
-    # ttk.Button(frame, image=categoryImage, command=categoryClicked).grid(column=1, row=1)
-    # ttk.Label(frame, text="Categories").grid(column=1, row=2)
-    #
-    # documentsImage = ImageTk.PhotoImage(Image.open("icons/documents.png"))
-    # ttk.Button(frame, image=documentsImage, command=documentsClicked).grid(column=2, row=1)
-    # ttk.Label(frame, text="Documents").grid(column=2, row=2)
-    #
-    # new_projectImage = ImageTk.PhotoImage(Image.open("icons/new_project.png"))
-    # ttk.Button(frame, image=new_projectImage, command=new_projectClicked).grid(column=3, row=1)
-    # ttk.Label(frame, text="New Project").grid(column=3, row=2)
-    #
-    # printImage = ImageTk.PhotoImage(Image.open("icons/print.png"))
-    # ttk.Button(frame, image=printImage, command=printClicked).grid(column=4, row=1)
-    # ttk.Label(frame, text="Print").grid(column=4, row=2)
-    #
-    #
-    #
-    # settingsImage = ImageTk.PhotoImage(Image.open("icons/settings.png"))
-    # ttk.Button(frame, image=settingsImage, command=settingsClicked).grid(column=6, row=1)
-    # ttk.Label(frame, text="Settings").grid(column=6, row=2)
-    #
-    # uploadImage = ImageTk.PhotoImage(Image.open("icons/upload.png"))
-    # ttk.Button(frame, image=uploadImage, command=uploadClicked).grid(column=7, row=1)
-    # ttk.Label(frame, text="Upload").grid(column=7, row=2)
-    #
-    # downloadImage = ImageTk.PhotoImage(Image.open("icons/download.png"))
-    # ttk.Button(frame, image=downloadImage, command=downloadClicked).grid(column=8, row=1)
-    # ttk.Label(frame, text="Download").grid(column=8, row=2)
