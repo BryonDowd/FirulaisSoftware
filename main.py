@@ -1,10 +1,12 @@
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
+from tkinter import filedialog
 from PIL import Image, ImageTk
+import csv
+
 
 LARGE_FONT = ("Verdana", 35)
-
 
 # Controller for app navigation
 class AppController(Tk):
@@ -57,7 +59,7 @@ class AppController(Tk):
         self.frames = {}
 
         # Iterate through a tuple consisting of the different page layouts, and construct each frame
-        for page in (Home, Reports):
+        for page in (Home, Reports, NewData):
             frame = page(container, self)
             self.frames[page] = frame
             frame.grid(row=0, column=0, sticky="nsew")
@@ -83,6 +85,10 @@ class Home(Frame):
         ttk.Button(self, image=reportsImage, command=lambda: controller.show_frame(Reports)).grid(row=1, column=0)
         ttk.Label(self, text="Reports").grid(row=2, column=0)
 
+        newDataImage = ImageTk.PhotoImage(Image.open("icons/new.png"))
+        ttk.Button(self, image=newDataImage, command=lambda: controller.show_frame(NewData)).grid(row=1, column=1)
+        ttk.Label(self, text="New Data").grid(row=2, column=1)
+
 
 # Reports page
 class Reports(Frame):
@@ -95,6 +101,37 @@ class Reports(Frame):
         homeImage = ImageTk.PhotoImage(Image.open("icons/home.png"))
         ttk.Button(self, image=homeImage, command=lambda: controller.show_frame(Home)).grid(row=1, column=0)
         ttk.Label(self, text="Home").grid(row=2, column=0)
+
+# New Data page
+class NewData(Frame):
+    def __init__(self, parent, controller):
+        Frame.__init__(self, parent)
+
+        label = ttk.Label(self, text="New Data", font=LARGE_FONT)
+        label.grid(row=0, column=4, padx=10, pady=10)
+
+        homeImage = ImageTk.PhotoImage(Image.open("icons/home.png"))
+        ttk.Button(self, image=homeImage, command=lambda: controller.show_frame(Home)).grid(row=1, column=0)
+        ttk.Label(self, text="Home").grid(row=2, column=0)
+
+        importImage = ImageTk.PhotoImage(Image.open("icons/upload.png"))
+        ttk.Button(self, image=importImage, command=self.selectFile).grid(row=1, column=1)
+        ttk.Label(self, text="Import").grid(row=2, column=1)
+
+    def selectFile(self):
+        filename = filedialog.askopenfilename(
+            title='Open a file',
+            initialdir='/',
+            filetypes=(('csv files', '*.csv'),)
+            )
+
+        messagebox.showinfo(title='Selected File', message=filename)
+
+        with open(filename, newline='') as csvfile:
+            csvReader = csv.reader(csvfile)
+            for row in csvReader:
+                print(', '.join(row))u
+
 
 
 def unimplemented():
