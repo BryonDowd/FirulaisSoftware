@@ -4,6 +4,8 @@ from tkinter import messagebox
 from tkinter import filedialog
 from PIL import Image, ImageTk
 import csv
+import sqlite3
+from sqlite3 import Error
 
 
 LARGE_FONT = ("Verdana", 35)
@@ -15,6 +17,14 @@ class AppController(Tk):
         Tk.__init__(self, *args, **kwargs)
         self.title("Firulais Software Center")
         self.geometry("800x600")
+
+        # Create/Open a Database
+
+        try:
+            databaseConnection = sqlite3.connect("C:/Users/jard_/Documents/School/USF/Master/IndependentProject/FirulaisSoftware/Database/db_file.db")
+        except Error as e:
+            messagebox.showerror("Failure connecting to database", e)
+
 
         # Create a menu bar
         menuBar = Menu(self)
@@ -66,6 +76,7 @@ class AppController(Tk):
 
         # Default to the Home page
         self.show_frame(Home)
+
 
     # Display the given page
     def show_frame(self, page):
@@ -130,7 +141,7 @@ class NewData(Frame):
         with open(filename, newline='') as csvfile:
             csvReader = csv.reader(csvfile)
             for row in csvReader:
-                print(', '.join(row))u
+                print(', '.join(row))
 
 
 
