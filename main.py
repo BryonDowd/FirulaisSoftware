@@ -6,6 +6,7 @@ from PIL import Image, ImageTk
 import csv
 import sqlite3
 from sqlite3 import Error
+import os
 
 
 LARGE_FONT = ("Verdana", 35)
@@ -19,11 +20,15 @@ class AppController(Tk):
         self.geometry("800x600")
 
         # Create/Open a Database
+        databasePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "Database", "")
+        os.makedirs(databasePath, exist_ok=True)
+        databasePath = os.path.join(databasePath, "db_file.db")
 
         try:
-            databaseConnection = sqlite3.connect("C:/Users/jard_/Documents/School/USF/Master/IndependentProject/FirulaisSoftware/Database/db_file.db")
+            databaseConnection = sqlite3.connect(databasePath)
         except Error as e:
             messagebox.showerror("Failure connecting to database", e)
+
 
 
         # Create a menu bar
