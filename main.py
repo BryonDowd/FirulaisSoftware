@@ -7,8 +7,8 @@ import csv
 import sqlite3
 from sqlite3 import Error
 
-
 LARGE_FONT = ("Verdana", 35)
+
 
 # Controller for app navigation
 class AppController(Tk):
@@ -21,10 +21,40 @@ class AppController(Tk):
         # Create/Open a Database
 
         try:
-            databaseConnection = sqlite3.connect("C:/Users/jard_/Documents/School/USF/Master/IndependentProject/FirulaisSoftware/Database/db_file.db")
+            self.databaseConnection = sqlite3.connect(
+                "C:/Users/jard_/Documents/School/USF/Master/IndependentProject/FirulaisSoftware/Database/db_file.db")
         except Error as e:
             messagebox.showerror("Failure connecting to database", e)
 
+        self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS transactions (
+                                    transactionId integer PRIMARY KEY,
+                                    date integer NOT NULL,
+                                    accountId integer NOT NULL,
+                                    descriptionId integer NOT NULL,
+                                    amount integer NOT NULL,
+                                    categoryId integer NOT NULL
+                            ); """)
+
+        self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS accounts (
+                                    accountId integer PRIMARY KEY,
+                                    name text NOT NULL,
+                                    ownerId integer NOT NULL
+                            ); """)
+
+        self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS owners (
+                                    ownerId integer PRIMARY KEY,
+                                    name text NOT NULL
+                            ); """)
+
+        self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS categories (
+                                    categoryId integer PRIMARY KEY,
+                                    name text NOT NULL
+                            ); """)
+
+        self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS descriptions (
+                                    descriptionId integer PRIMARY KEY,
+                                    description text NOT NULL
+                            ); """)
 
         # Create a menu bar
         menuBar = Menu(self)
@@ -69,19 +99,26 @@ class AppController(Tk):
         self.frames = {}
 
         # Iterate through a tuple consisting of the different page layouts, and construct each frame
-        for page in (Home, Reports, NewData):
-            frame = page(container, self)
-            self.frames[page] = frame
+        for Page in (Home, Reports, NewData):
+            frame = Page(container, self)
+            self.frames[Page] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
         # Default to the Home page
-        self.show_frame(Home)
-
+        self.showFrame(Home)
 
     # Display the given page
-    def show_frame(self, page):
+    def showFrame(self, page):
         frame = self.frames[page]
         frame.tkraise()
+
+    # Execute query on table
+    def executeDbQuery(self, query):
+        try:
+            cursor = self.databaseConnection.cursor()
+            cursor.execute(query)
+        except Error as e:
+            messagebox.showerror("Failure executing database query", e)
 
 
 # Home page
@@ -93,11 +130,11 @@ class Home(Frame):
         homeLabel.grid(row=0, column=4, padx=10, pady=10)
 
         reportsImage = ImageTk.PhotoImage(Image.open("icons/reports.png"))
-        ttk.Button(self, image=reportsImage, command=lambda: controller.show_frame(Reports)).grid(row=1, column=0)
+        ttk.Button(self, image=reportsImage, command=lambda: controller.showFrame(Reports)).grid(row=1, column=0)
         ttk.Label(self, text="Reports").grid(row=2, column=0)
 
         newDataImage = ImageTk.PhotoImage(Image.open("icons/new.png"))
-        ttk.Button(self, image=newDataImage, command=lambda: controller.show_frame(NewData)).grid(row=1, column=1)
+        ttk.Button(self, image=newDataImage, command=lambda: controller.showFrame(NewData)).grid(row=1, column=1)
         ttk.Label(self, text="New Data").grid(row=2, column=1)
 
 
@@ -110,8 +147,9 @@ class Reports(Frame):
         label.grid(row=0, column=4, padx=10, pady=10)
 
         homeImage = ImageTk.PhotoImage(Image.open("icons/home.png"))
-        ttk.Button(self, image=homeImage, command=lambda: controller.show_frame(Home)).grid(row=1, column=0)
+        ttk.Button(self, image=homeImage, command=lambda: controller.showFrame(Home)).grid(row=1, column=0)
         ttk.Label(self, text="Home").grid(row=2, column=0)
+
 
 # New Data page
 class NewData(Frame):
@@ -122,7 +160,7 @@ class NewData(Frame):
         label.grid(row=0, column=4, padx=10, pady=10)
 
         homeImage = ImageTk.PhotoImage(Image.open("icons/home.png"))
-        ttk.Button(self, image=homeImage, command=lambda: controller.show_frame(Home)).grid(row=1, column=0)
+        ttk.Button(self, image=homeImage, command=lambda: controller.showFrame(Home)).grid(row=1, column=0)
         ttk.Label(self, text="Home").grid(row=2, column=0)
 
         importImage = ImageTk.PhotoImage(Image.open("icons/upload.png"))
@@ -134,7 +172,7 @@ class NewData(Frame):
             title='Open a file',
             initialdir='/',
             filetypes=(('csv files', '*.csv'),)
-            )
+        )
 
         messagebox.showinfo(title='Selected File', message=filename)
 
@@ -142,7 +180,6 @@ class NewData(Frame):
             csvReader = csv.reader(csvfile)
             for row in csvReader:
                 print(', '.join(row))
-
 
 
 def unimplemented():
