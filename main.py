@@ -1,3 +1,4 @@
+from itertools import islice
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
@@ -6,6 +7,7 @@ from PIL import Image, ImageTk
 import csv
 import sqlite3
 from sqlite3 import Error
+import os
 
 LARGE_FONT = ("Verdana", 35)
 
@@ -19,10 +21,12 @@ class AppController(Tk):
         self.geometry("800x600")
 
         # Create/Open a Database
+        databasePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "Database", "")
+        os.makedirs(databasePath, exist_ok=True)
+        databasePath = os.path.join(databasePath, "db_file.db")
 
         try:
-            self.databaseConnection = sqlite3.connect(
-                "C:/Users/jard_/Documents/School/USF/Master/IndependentProject/FirulaisSoftware/Database/db_file.db")
+            self.databaseConnection = sqlite3.connect(databasePath)
         except Error as e:
             messagebox.showerror("Failure connecting to database", e)
 
@@ -54,6 +58,12 @@ class AppController(Tk):
         self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS descriptions (
                                     descriptionId integer PRIMARY KEY,
                                     description text NOT NULL
+                            ); """)
+
+        self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS configurations (
+                                    configurationId integer PRIMARY KEY,
+                                    name text NOT NULL,
+                                    value text NOT NULL
                             ); """)
 
         # Create a menu bar
@@ -112,13 +122,29 @@ class AppController(Tk):
         frame = self.frames[page]
         frame.tkraise()
 
-    # Execute query on table
+    # Execute query on database
     def executeDbQuery(self, query):
         try:
             cursor = self.databaseConnection.cursor()
-            cursor.execute(query)
+            return cursor.execute(query)
         except Error as e:
             messagebox.showerror("Failure executing database query", e)
+
+    # Return the last used import path from the config table, or '/' if empty
+    def getImportPath(self):
+        path = self.executeDbQuery(f'select value from configurations where name = "Import Path"').fetchone()
+        if path is None:
+            return '/'
+        else:
+            return path[0]
+
+    # Write the last used import path to the config table
+    def setImportPath(self, path):
+        self.executeDbQuery(f"""insert or replace into configurations (configurationId, name, value) values (
+                                   (select configurationId from configurations where name = "Import Path"),
+                                   "Import Path",
+                                   "{path}");
+                             """)
 
 
 # Home page
@@ -156,6 +182,8 @@ class NewData(Frame):
     def __init__(self, parent, controller):
         Frame.__init__(self, parent)
 
+        self.controller = controller
+
         label = ttk.Label(self, text="New Data", font=LARGE_FONT)
         label.grid(row=0, column=4, padx=10, pady=10)
 
@@ -169,16 +197,21 @@ class NewData(Frame):
 
     def selectFile(self):
         filename = filedialog.askopenfilename(
-            title='Open a file',
-            initialdir='/',
-            filetypes=(('csv files', '*.csv'),)
-        )
+                        title='Import a CSV file',
+                        initialdir=self.controller.getImportPath(),
+                        filetypes=(('csv files', '*.csv'),)
+                   )
 
-        messagebox.showinfo(title='Selected File', message=filename)
+        # If the user clicks cancel, don't try to open any file.
+        if not filename:
+            return
 
-        with open(filename, newline='') as csvfile:
-            csvReader = csv.reader(csvfile)
-            for row in csvReader:
+        # Store the last opened file directory for next time
+        self.controller.setImportPath(os.path.dirname(filename))
+
+        with open(filename, newline='') as csvFile:
+            csvReader = csv.reader(csvFile)
+            for row in islice(csvReader, 0, 10):
                 print(', '.join(row))
 
 
