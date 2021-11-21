@@ -66,6 +66,7 @@ class AppController(Tk):
                                     value text NOT NULL
                             ); """)
 
+
         # Create a menu bar
         menuBar = Menu(self)
         fileMenu = Menu(menuBar, tearoff=0)
@@ -138,7 +139,7 @@ class AppController(Tk):
         else:
             return path[0]
 
-    # Write the last used import path to the config table
+        # Write the last used import path to the config table
     def setImportPath(self, path):
         self.executeDbQuery(f"""insert or replace into configurations (configurationId, name, value) values (
                                    (select configurationId from configurations where name = "Import Path"),
@@ -146,6 +147,26 @@ class AppController(Tk):
                                    "{path}");
                              """)
 
+    # Return the categoryId of category
+    def getCategoryId(self, category):
+        categoryId = self.executeDbQuery(f'select categoryId from categories where name = "{category}"').fetchone()
+        if categoryId is None:
+            return self.executeDbQuery(f'insert into categories (name) values ("{category}");').lastrowid
+        else:
+            return categoryId[0]
+
+    # Return the descriptionId of category
+    def getDescriptionId(self, description):
+        descriptionId = self.executeDbQuery(f'select descriptionId from descriptions where description = "{description}"').fetchone()
+        if descriptionId is None:
+            return self.executeDbQuery(f'insert into descriptions (description) values ("{description}");').lastrowid
+        else:
+            return descriptionId[0]
+
+    # Insert a transaction into the database
+    def insertTransaction(self, date, account, description, amount, category):
+        result = self.executeDbQuery(f"""insert into transactions (date, accountId, descriptionId, amount, categoryId)
+                                        values ("{date}", "{account}", {self.getDescriptionId(description)}, "{amount}", {self.getCategoryId(category)}); """)
 
 # Home page
 class Home(Frame):
@@ -210,9 +231,11 @@ class NewData(Frame):
         self.controller.setImportPath(os.path.dirname(filename))
 
         with open(filename, newline='') as csvFile:
+            next(csvFile)
             csvReader = csv.reader(csvFile)
-            for row in islice(csvReader, 0, 10):
-                print(', '.join(row))
+            for row in csvReader:
+                self.controller.insertTransaction(row[0], "Discover", row[2], row[3], row[4])
+        self.controller.databaseConnection.commit()
 
 
 def unimplemented():
