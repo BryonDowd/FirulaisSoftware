@@ -1,4 +1,3 @@
-from itertools import islice
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
@@ -165,8 +164,9 @@ class AppController(Tk):
 
     # Insert a transaction into the database
     def insertTransaction(self, date, account, description, amount, category):
-        result = self.executeDbQuery(f"""insert into transactions (date, accountId, descriptionId, amount, categoryId)
-                                        values ("{date}", "{account}", {self.getDescriptionId(description)}, "{amount}", {self.getCategoryId(category)}); """)
+        self.executeDbQuery(f"""insert into transactions (date, accountId, descriptionId, amount, categoryId)
+                                values ("{date}", "{account}", {self.getDescriptionId(description)}, "{amount}", {self.getCategoryId(category)}); """)
+
 
 # Home page
 class Home(Frame):
@@ -213,10 +213,46 @@ class NewData(Frame):
         ttk.Label(self, text="Home").grid(row=2, column=0)
 
         importImage = ImageTk.PhotoImage(Image.open("icons/upload.png"))
-        ttk.Button(self, image=importImage, command=self.selectFile).grid(row=1, column=1)
+        ttk.Button(self, image=importImage, command=self.importNewData).grid(row=1, column=1)
         ttk.Label(self, text="Import").grid(row=2, column=1)
 
-    def selectFile(self):
+    def importNewData(self):
+        results = self.controller.executeDbQuery("select name from accounts").fetchall()
+        if results is None:
+            accountList = []
+        else:
+            accountList = [r for r, in results]
+        accountList.insert(0, "Create New Account")
+
+        accountName = SelectionPopup(self, "Select an account for import.", accountList).show()
+
+        if accountName == "Create New Account":
+            while True:
+                accountName = TextEntryPopup(self, "Enter an Account Name").show()
+                if accountName and accountName not in accountList and accountName != "Create New Account":
+                    results = self.controller.executeDbQuery("select name from owners").fetchall()
+                    if results is None:
+                        ownerList = []
+                    else:
+                        ownerList = [r for r, in results]
+                    ownerList.insert(0, "Create New Owner")
+                    ownerName = SelectionPopup(self, "Select an owner for this account.", ownerList).show()
+                    if ownerName == "Create New Owner":
+                        while True:
+                            ownerName = TextEntryPopup(self, "Enter an Owner Name").show()
+                            if ownerName and ownerName not in ownerList and ownerName != "Create New Owner":
+                                ownerId = self.controller.executeDbQuery(f'insert into owners (name) values ("{ownerName}")').lastrowid
+                                break
+                    else:
+                        ownerId = self.controller.executeDbQuery(f'select ownerId from owners where name = "{ownerName}"').fetchone()[0]
+                    accountId = self.controller.executeDbQuery(f'insert into accounts (name, ownerId) values ("{accountName}", {ownerId})').lastrowid
+                    break
+        else:
+            accountId = self.controller.executeDbQuery(f'select accountId from accounts where name = "{accountName}"').fetchone()[0]
+
+        self.selectFile(accountId)
+
+    def selectFile(self, account):
         filename = filedialog.askopenfilename(
                         title='Import a CSV file',
                         initialdir=self.controller.getImportPath(),
@@ -234,8 +270,55 @@ class NewData(Frame):
             next(csvFile)
             csvReader = csv.reader(csvFile)
             for row in csvReader:
-                self.controller.insertTransaction(row[0], "Discover", row[2], row[3], row[4])
+                self.controller.insertTransaction(row[0], account, row[2], row[3], row[4])
         self.controller.databaseConnection.commit()
+
+
+class TextEntryPopup(Toplevel):
+    def __init__(self, parent, prompt):
+        Toplevel.__init__(self, parent)
+        self.prompt = Label(self, text=prompt)
+        self.prompt.pack(side="top", fill="x")
+
+        self.entryText = StringVar()
+        self.entry = Entry(self, textvariable=self.entryText)
+        self.entry.pack(side="top", fill="x")
+
+        self.okButton = Button(self, text="OK", command=self.onClickOk)
+        self.okButton.pack(side="right")
+
+    def onClickOk(self):
+        self.destroy()
+
+    def show(self):
+        self.wm_deiconify()
+        self.entry.focus_force()
+        self.wait_window()
+        return self.entryText.get()
+
+
+class SelectionPopup(Toplevel):
+    def __init__(self, parent, prompt, options):
+        Toplevel.__init__(self, parent)
+        self.prompt = Label(self, text=prompt)
+        self.prompt.pack(side="top", fill="x")
+
+        self.selection = StringVar()
+        self.selection.set(options[0])
+        self.menu = OptionMenu(self, self.selection, *options)
+        self.menu.pack(side="top", fill="x")
+
+        self.okButton = Button(self, text="OK", command=self.onClickOk)
+        self.okButton.pack(side="right")
+
+    def onClickOk(self):
+        self.destroy()
+
+    def show(self):
+        self.wm_deiconify()
+        self.menu.focus_force()
+        self.wait_window()
+        return self.selection.get()
 
 
 def unimplemented():
