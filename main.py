@@ -7,6 +7,8 @@ import csv
 import sqlite3
 from sqlite3 import Error
 import os
+import time
+import datetime
 
 LARGE_FONT = ("Verdana", 35)
 
@@ -163,9 +165,10 @@ class AppController(Tk):
             return descriptionId[0]
 
     # Insert a transaction into the database
-    def insertTransaction(self, date, account, description, amount, category):
+    def insertTransaction(self, date, accountId, description, amount, category):
+        timestampDate = time.mktime(datetime.datetime.strptime(date, "%m/%d/%Y").timetuple())
         self.executeDbQuery(f"""insert into transactions (date, accountId, descriptionId, amount, categoryId)
-                                values ("{date}", "{account}", {self.getDescriptionId(description)}, "{amount}", {self.getCategoryId(category)}); """)
+                                values ({timestampDate}, {accountId}, {self.getDescriptionId(description)}, {amount}, {self.getCategoryId(category)}); """)
 
 
 # Home page
@@ -197,6 +200,37 @@ class Reports(Frame):
         ttk.Button(self, image=homeImage, command=lambda: controller.showFrame(Home)).grid(row=1, column=0)
         ttk.Label(self, text="Home").grid(row=2, column=0)
 
+        reportTypes = ["Monthly", "Summary"]
+        selectedReportType = StringVar()
+        selectedReportType.set(reportTypes[0])
+        reportTypeMenu = OptionMenu(self, selectedReportType, *reportTypes)
+        reportTypeMenu.grid(row=3, column=0, padx=10, pady=10)
+
+        latestTransaction = controller.executeDbQuery(f'select max(date) from transactions').fetchone()
+        if latestTransaction is not None:
+            latestTransaction = latestTransaction[0]
+            oldestTransaction = controller.executeDbQuery(f'select min(date) from transactions').fetchone()[0]
+
+            validYears = [*range(datetime.datetime.fromtimestamp(latestTransaction).year, datetime.datetime.fromtimestamp(oldestTransaction).year-1, -1)]
+            selectedYear = IntVar()
+            selectedYear.set(validYears[0])
+            yearMenu = OptionMenu(self, selectedYear, *validYears)
+            yearMenu.grid(row=4, column=1, padx=10, pady=10)
+
+            monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", ]
+            selectedMonth = StringVar()
+            selectedMonth.set(monthsList[0])
+            monthMenu = OptionMenu(self, selectedMonth, *monthsList)
+            monthMenu.grid(row=4, column=0, padx=10, pady=10)
+
+# TODO query the transactions table for all transactions for the selected month and year
+            transactionsQuery = self.executeDbQuery("""select date, accounts.name, owners.name, descriptions.description, amount, categories.name
+            from transactions JOIN accounts on transactions.accountId = accounts.accountId
+            join owners on accounts.ownerId = owners.ownerId
+            join descriptions on transactions.descriptionId = descriptions.descriptionId
+            join categories on transactions.categoryId = categories.categoryId;""")
+
+            
 
 # New Data page
 class NewData(Frame):
@@ -252,7 +286,7 @@ class NewData(Frame):
 
         self.selectFile(accountId)
 
-    def selectFile(self, account):
+    def selectFile(self, accountId):
         filename = filedialog.askopenfilename(
                         title='Import a CSV file',
                         initialdir=self.controller.getImportPath(),
@@ -270,7 +304,7 @@ class NewData(Frame):
             next(csvFile)
             csvReader = csv.reader(csvFile)
             for row in csvReader:
-                self.controller.insertTransaction(row[0], account, row[2], row[3], row[4])
+                self.controller.insertTransaction(row[0], accountId, row[2], row[3], row[4])
         self.controller.databaseConnection.commit()
 
 
