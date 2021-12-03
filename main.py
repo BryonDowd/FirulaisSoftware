@@ -1,3 +1,4 @@
+from decimal import Decimal
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
@@ -19,7 +20,7 @@ class AppController(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
         self.title("Firulais Software Center")
-        self.geometry("800x600")
+        self.geometry("1600x800")
 
         # Create/Open a Database
         databasePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "Database", "")
@@ -32,41 +33,40 @@ class AppController(Tk):
             messagebox.showerror("Failure connecting to database", e)
 
         self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS transactions (
-                                    transactionId integer PRIMARY KEY,
-                                    date integer NOT NULL,
-                                    accountId integer NOT NULL,
-                                    descriptionId integer NOT NULL,
-                                    amount integer NOT NULL,
-                                    categoryId integer NOT NULL
+                                    transactionId integer CHECK(TYPEOF(transactionId) = 'integer') PRIMARY KEY,
+                                    date integer CHECK(TYPEOF(date) = 'integer') NOT NULL,
+                                    accountId integer CHECK(TYPEOF(accountId) = 'integer') NOT NULL,
+                                    descriptionId integer CHECK(TYPEOF(descriptionId) = 'integer') NOT NULL,
+                                    amount integer CHECK(TYPEOF(amount) = 'integer') NOT NULL,
+                                    categoryId integer CHECK(TYPEOF(categoryId) = 'integer') NOT NULL
                             ); """)
 
         self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS accounts (
-                                    accountId integer PRIMARY KEY,
-                                    name text NOT NULL,
-                                    ownerId integer NOT NULL
+                                    accountId integer CHECK(TYPEOF(accountId) = 'integer') PRIMARY KEY,
+                                    name text CHECK(TYPEOF(name) = 'text') UNIQUE NOT NULL,
+                                    ownerId integer CHECK(TYPEOF(ownerId) = 'integer') NOT NULL
                             ); """)
 
         self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS owners (
-                                    ownerId integer PRIMARY KEY,
-                                    name text NOT NULL
+                                    ownerId integer CHECK(TYPEOF(ownerId) = 'integer') PRIMARY KEY,
+                                    name text CHECK(TYPEOF(name) = 'text') UNIQUE NOT NULL
                             ); """)
 
         self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS categories (
-                                    categoryId integer PRIMARY KEY,
-                                    name text NOT NULL
+                                    categoryId integer CHECK(TYPEOF(categoryId) = 'integer') PRIMARY KEY,
+                                    name text CHECK(TYPEOF(name) = 'text') UNIQUE NOT NULL
                             ); """)
 
         self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS descriptions (
-                                    descriptionId integer PRIMARY KEY,
-                                    description text NOT NULL
+                                    descriptionId integer CHECK(TYPEOF(descriptionId) = 'integer') PRIMARY KEY,
+                                    description text CHECK(TYPEOF(description) = 'text') NOT NULL
                             ); """)
 
         self.executeDbQuery(""" CREATE TABLE IF NOT EXISTS configurations (
-                                    configurationId integer PRIMARY KEY,
-                                    name text NOT NULL,
-                                    value text NOT NULL
+                                    configurationId integer CHECK(TYPEOF(configurationId) = 'integer') PRIMARY KEY,
+                                    name text CHECK(TYPEOF(name) = 'text') UNIQUE NOT NULL,
+                                    value text CHECK(TYPEOF(value) = 'text') NOT NULL
                             ); """)
-
 
         # Create a menu bar
         menuBar = Menu(self)
@@ -145,8 +145,7 @@ class AppController(Tk):
         self.executeDbQuery(f"""insert or replace into configurations (configurationId, name, value) values (
                                    (select configurationId from configurations where name = "Import Path"),
                                    "Import Path",
-                                   "{path}");
-                             """)
+                                   "{path}");""")
 
     # Return the categoryId of category
     def getCategoryId(self, category):
@@ -167,8 +166,9 @@ class AppController(Tk):
     # Insert a transaction into the database
     def insertTransaction(self, date, accountId, description, amount, category):
         timestampDate = time.mktime(datetime.datetime.strptime(date, "%m/%d/%Y").timetuple())
+        integerAmount = int((Decimal(amount).quantize(Decimal('0.01')) * 100).to_integral_value())
         self.executeDbQuery(f"""insert into transactions (date, accountId, descriptionId, amount, categoryId)
-                                values ({timestampDate}, {accountId}, {self.getDescriptionId(description)}, {amount}, {self.getCategoryId(category)}); """)
+                                values ({timestampDate}, {accountId}, {self.getDescriptionId(description)}, {integerAmount}, {self.getCategoryId(category)}); """)
 
 
 # Home page
@@ -189,12 +189,24 @@ class Home(Frame):
 
 
 # Reports page
+def displayAmount(amount):
+    if amount is None:
+        return "$0.00"
+    amountValue = (Decimal(amount) / 100).quantize(Decimal('0.01'))
+    if amountValue < 0.0:
+        return f"(${format(-amountValue, '1.2f')})"
+    else:
+        return f"${format(amountValue, '1.2f')}"
+
+
 class Reports(Frame):
     def __init__(self, parent, controller):
         Frame.__init__(self, parent)
 
+        self.controller = controller
+
         label = ttk.Label(self, text="Reports", font=LARGE_FONT)
-        label.grid(row=0, column=4, padx=10, pady=10)
+        label.grid(row=0, column=2, padx=10, pady=10)
 
         homeImage = ImageTk.PhotoImage(Image.open("icons/home.png"))
         ttk.Button(self, image=homeImage, command=lambda: controller.showFrame(Home)).grid(row=1, column=0)
@@ -203,34 +215,120 @@ class Reports(Frame):
         reportTypes = ["Monthly", "Summary"]
         selectedReportType = StringVar()
         selectedReportType.set(reportTypes[0])
-        reportTypeMenu = OptionMenu(self, selectedReportType, *reportTypes)
+        reportTypeMenu = ttk.OptionMenu(self, selectedReportType, "Select a Report", *reportTypes, command=self.selectReportType)
         reportTypeMenu.grid(row=3, column=0, padx=10, pady=10)
 
-        latestTransaction = controller.executeDbQuery(f'select max(date) from transactions').fetchone()
-        if latestTransaction is not None:
-            latestTransaction = latestTransaction[0]
-            oldestTransaction = controller.executeDbQuery(f'select min(date) from transactions').fetchone()[0]
+        self.selectedYear = IntVar()
+        self.yearMenu = ttk.OptionMenu(self, self.selectedYear, "Select a Year", [], command=self.selectYear)
+        self.yearMenu.grid(row=4, column=0, padx=10, pady=10)
 
-            validYears = [*range(datetime.datetime.fromtimestamp(latestTransaction).year, datetime.datetime.fromtimestamp(oldestTransaction).year-1, -1)]
-            selectedYear = IntVar()
-            selectedYear.set(validYears[0])
-            yearMenu = OptionMenu(self, selectedYear, *validYears)
-            yearMenu.grid(row=4, column=1, padx=10, pady=10)
+        self.monthValid = False
+        self.monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        self.selectedMonth = StringVar()
+        self.monthMenu = ttk.OptionMenu(self, self.selectedMonth, "Select a Month", *self.monthsList, command=self.selectMonth)
+        self.monthMenu.grid(row=4, column=1, padx=10, pady=10)
 
-            monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", ]
-            selectedMonth = StringVar()
-            selectedMonth.set(monthsList[0])
-            monthMenu = OptionMenu(self, selectedMonth, *monthsList)
-            monthMenu.grid(row=4, column=0, padx=10, pady=10)
+        self.monthlyReport = ttk.Treeview(self, column=("Date", "Account", "Owner", "Description", "Amount", "Category"), show='headings')
+        self.monthlyReport.grid(row=5, column=0, columnspan=5, padx=10, pady=10)
+        self.monthlyReport.column("#1", anchor=E, width=70)
+        self.monthlyReport.heading("#1", text="Date")
+        self.monthlyReport.column("#2", anchor=W, width=100)
+        self.monthlyReport.heading("#2", text="Account")
+        self.monthlyReport.column("#3", anchor=W, width=60)
+        self.monthlyReport.heading("#3", text="Owner")
+        self.monthlyReport.column("#4", anchor=W, width=800)
+        self.monthlyReport.heading("#4", text="Description")
+        self.monthlyReport.column("#5", anchor=E, width=70)
+        self.monthlyReport.heading("#5", text="Amount")
+        self.monthlyReport.column("#6", anchor=W, width=150)
+        self.monthlyReport.heading("#6", text="Category")
 
-# TODO query the transactions table for all transactions for the selected month and year
-            transactionsQuery = self.executeDbQuery("""select date, accounts.name, owners.name, descriptions.description, amount, categories.name
-            from transactions JOIN accounts on transactions.accountId = accounts.accountId
-            join owners on accounts.ownerId = owners.ownerId
-            join descriptions on transactions.descriptionId = descriptions.descriptionId
-            join categories on transactions.categoryId = categories.categoryId;""")
+        self.summaryReport = None
 
-            
+        self.selectReportType(selectedReportType.get())
+
+    def selectReportType(self, selectedReportType):
+        if selectedReportType == "Monthly":
+            if self.summaryReport is not None:
+                self.summaryReport.grid_remove()
+            latestTransaction = self.controller.executeDbQuery(f'select max(date) from transactions').fetchone()[0]
+            if latestTransaction is not None:
+                oldestTransaction = self.controller.executeDbQuery(f'select min(date) from transactions').fetchone()[0]
+
+                validYears = [*range(datetime.datetime.fromtimestamp(latestTransaction).year,
+                                     datetime.datetime.fromtimestamp(oldestTransaction).year - 1, -1)]
+                self.yearMenu.grid()
+                self.yearMenu.set_menu("Select a Year", *validYears)
+            else:
+                messagebox.showwarning("No data", "Cannot generate report, no transactions have been imported.")
+        elif selectedReportType == "Summary":
+            self.yearMenu.grid_remove()
+            self.monthMenu.grid_remove()
+            self.monthlyReport.grid_remove()
+            self.generateSummaryReport()
+        else:
+            self.yearMenu.grid_remove()
+            self.monthMenu.grid_remove()
+            self.monthlyReport.grid_remove()
+            if self.summaryReport is not None:
+                self.summaryReport.grid_remove()
+
+    def selectYear(self, selectedYear):
+        self.monthMenu.grid()
+        if self.monthValid:
+            self.generateMonthlyReport()
+
+    def selectMonth(self, selectedMonth):
+        self.monthValid = True
+        self.generateMonthlyReport()
+
+    def generateMonthlyReport(self):
+        monthNumeric = self.monthsList.index(self.selectedMonth.get()) + 1
+        earliestTimestamp = time.mktime(datetime.date(self.selectedYear.get(), monthNumeric, 1).timetuple())
+        latestTimestamp = time.mktime(datetime.date(self.selectedYear.get(), monthNumeric + 1, 1).timetuple()) - 1
+        transactions = self.controller.executeDbQuery(f"""select transactionId, date(date, 'unixepoch'), accounts.name, owners.name, descriptions.description, amount, categories.name
+                                                               from transactions JOIN accounts on transactions.accountId = accounts.accountId
+                                                               join owners on accounts.ownerId = owners.ownerId
+                                                               join descriptions on transactions.descriptionId = descriptions.descriptionId
+                                                               join categories on transactions.categoryId = categories.categoryId
+                                                               where (date between {earliestTimestamp} and {latestTimestamp});""").fetchall()
+        self.monthlyReport.delete(*self.monthlyReport.get_children())
+        for transaction in transactions:
+            displayTransaction = list(transaction)[1:]
+            displayTransaction[4] = displayAmount(displayTransaction[4])
+            self.monthlyReport.insert("", END, transaction[0], values=displayTransaction)
+
+        self.monthlyReport.grid()
+
+    def generateSummaryReport(self):
+        categories = self.controller.executeDbQuery("select name from categories").fetchall()
+        if categories is None:
+            return
+        categories = [category for category, in categories]
+
+        columnList = categories.copy()
+        columnList.insert(0, "Month")
+        self.summaryReport = ttk.Treeview(self, column=columnList, show='headings')
+        self.summaryReport.column("#1", anchor=W, width=50)
+        self.summaryReport.heading("#1", text="Month")
+        summaryQuery = "select cast(strftime('%m', date, 'unixepoch') as integer) as month"
+        for category in categories:
+            summaryQuery += f", SUM(CASE WHEN categories.name = '{category}' THEN transactions.amount END)"
+            self.summaryReport.column(category, anchor=E)
+            self.summaryReport.heading(category, text=category)
+        summaryQuery += ' from transactions join categories on transactions.categoryId = categories.categoryId where categories.name != "Payments and Credits" group by month'
+        summaries = self.controller.executeDbQuery(summaryQuery).fetchall()
+        if summaries is None:
+            return
+
+        self.summaryReport.delete(*self.summaryReport.get_children())
+        for summary in summaries:
+            displaySummary = list(summary)
+            for column in range(1, len(displaySummary)):
+                displaySummary[column] = displayAmount(displaySummary[column])
+            self.summaryReport.insert("", END, values=displaySummary)
+        self.summaryReport.grid(row=5, column=0, columnspan=5, padx=10, pady=10)
+
 
 # New Data page
 class NewData(Frame):
@@ -259,11 +357,13 @@ class NewData(Frame):
         accountList.insert(0, "Create New Account")
 
         accountName = SelectionPopup(self, "Select an account for import.", accountList).show()
-
         if accountName == "Create New Account":
             while True:
                 accountName = TextEntryPopup(self, "Enter an Account Name").show()
-                if accountName and accountName not in accountList and accountName != "Create New Account":
+                if not accountName:
+                    messagebox.showwarning("Prompt closed", "Aborting import.")
+                    return
+                elif accountName not in accountList and accountName != "Create New Account":
                     results = self.controller.executeDbQuery("select name from owners").fetchall()
                     if results is None:
                         ownerList = []
@@ -274,19 +374,27 @@ class NewData(Frame):
                     if ownerName == "Create New Owner":
                         while True:
                             ownerName = TextEntryPopup(self, "Enter an Owner Name").show()
-                            if ownerName and ownerName not in ownerList and ownerName != "Create New Owner":
+                            if not ownerName:
+                                messagebox.showwarning("Prompt closed", "Aborting import.")
+                                return
+                            elif ownerName not in ownerList and ownerName != "Create New Owner":
                                 ownerId = self.controller.executeDbQuery(f'insert into owners (name) values ("{ownerName}")').lastrowid
                                 break
+                            messagebox.showwarning("Invalid entry", "The entered account name either already exists or is invalid, please enter another.")
+                    elif ownerName == "Select an owner for this account.":
+                        messagebox.showwarning("Prompt closed", "Aborting import.")
+                        return
                     else:
                         ownerId = self.controller.executeDbQuery(f'select ownerId from owners where name = "{ownerName}"').fetchone()[0]
                     accountId = self.controller.executeDbQuery(f'insert into accounts (name, ownerId) values ("{accountName}", {ownerId})').lastrowid
                     break
+                messagebox.showwarning("Invalid entry", "The entered account name either already exists or is invalid, please enter another.")
+        elif accountName == "Select an account for import.":
+            messagebox.showwarning("Prompt closed", "Aborting import.")
+            return
         else:
             accountId = self.controller.executeDbQuery(f'select accountId from accounts where name = "{accountName}"').fetchone()[0]
 
-        self.selectFile(accountId)
-
-    def selectFile(self, accountId):
         filename = filedialog.askopenfilename(
                         title='Import a CSV file',
                         initialdir=self.controller.getImportPath(),
@@ -300,12 +408,23 @@ class NewData(Frame):
         # Store the last opened file directory for next time
         self.controller.setImportPath(os.path.dirname(filename))
 
+        progressPopup = Toplevel(self)
+        progress = DoubleVar()
+        progressBar = ttk.Progressbar(progressPopup, variable=progress, maximum=1, orient=HORIZONTAL, length=200, mode='determinate')
+        progressBar.pack(pady=10)
+        progressPopup.wm_deiconify()
+
         with open(filename, newline='') as csvFile:
+            total = sum(1 for line in csvFile) - 1
+            csvFile.seek(0)
             next(csvFile)
             csvReader = csv.reader(csvFile)
-            for row in csvReader:
+            for rowNumber, row in enumerate(csvReader):
                 self.controller.insertTransaction(row[0], accountId, row[2], row[3], row[4])
+                progress.set(rowNumber / total)
+                progressPopup.update()
         self.controller.databaseConnection.commit()
+        progressPopup.destroy()
 
 
 class TextEntryPopup(Toplevel):
@@ -320,9 +439,11 @@ class TextEntryPopup(Toplevel):
 
         self.okButton = Button(self, text="OK", command=self.onClickOk)
         self.okButton.pack(side="right")
+        self.bind('<Return>', self.onClickOk)
 
-    def onClickOk(self):
-        self.destroy()
+    def onClickOk(self, arg=''):
+        if self.entryText.get():
+            self.destroy()
 
     def show(self):
         self.wm_deiconify()
@@ -334,19 +455,17 @@ class TextEntryPopup(Toplevel):
 class SelectionPopup(Toplevel):
     def __init__(self, parent, prompt, options):
         Toplevel.__init__(self, parent)
-        self.prompt = Label(self, text=prompt)
-        self.prompt.pack(side="top", fill="x")
 
+        self.prompt = prompt
         self.selection = StringVar()
         self.selection.set(options[0])
-        self.menu = OptionMenu(self, self.selection, *options)
+        self.menu = ttk.OptionMenu(self, self.selection, prompt, command=self.onSelection, *options)
         self.menu.pack(side="top", fill="x")
+        self.bind('<Return>', self.onSelection)
 
-        self.okButton = Button(self, text="OK", command=self.onClickOk)
-        self.okButton.pack(side="right")
-
-    def onClickOk(self):
-        self.destroy()
+    def onSelection(self, arg=''):
+        if self.selection.get() != self.prompt:
+            self.destroy()
 
     def show(self):
         self.wm_deiconify()
